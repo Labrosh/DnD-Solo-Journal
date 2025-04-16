@@ -1,0 +1,22 @@
+{
+  "character": {
+    "name": "",
+    "level": 1,
+    "class": "",
+    "hp": 0,
+    "hit_dice": "",
+    "fighting_style": "",
+    "features": []
+  },
+  "inventory": [],
+  "quests": {
+    "completed": [],
+    "active": [],
+    "rumors": []
+  },
+  "npcs": [],
+  "mental_state": {
+    "notes": []
+  },
+  "journal_log": []
+}

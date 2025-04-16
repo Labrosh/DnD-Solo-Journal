@@ -27,10 +27,12 @@ env/
 .env
 
 # Journal logs and personal data
-# Keep the directory but ignore the contents
+# Ignore all files in logs directory
 logs/*.json
-logs/*.backup
+
+# Keep the logs directory structure
 !logs/.gitkeep
+logs/*.backup
 
 # IDE files
 .idea/

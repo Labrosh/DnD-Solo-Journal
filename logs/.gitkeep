@@ -1,1 +1,3 @@
-# This is an empty file to ensure the logs directory is included in version control
+# This file ensures the logs directory exists in the repository
+# The logs directory is where all character journal files are saved as .json
+# Filenames should reflect the character name or date (e.g., lawrence_day3.json)
