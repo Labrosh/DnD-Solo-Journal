@@ -118,13 +118,54 @@ def print_summary(data):
         
         print("\n===== ACTIVE QUESTS =====")
         for quest in data.get("quests", {}).get("active", []):
-            print(f"- {quest.get('title', 'Unnamed Quest')}")
+            if isinstance(quest, dict):
+                print(f"- {quest.get('title', 'Unnamed Quest')}")
+            else:
+                print(f"- {quest}")
         
         print("\n===== RECENT JOURNAL ENTRIES =====")
         entries = data.get("journal_log", [])
         for entry in entries[-3:]:  # Show the last 3 entries
-            print(f"\n[{entry.get('date', 'Unknown date')}] {entry.get('title', 'Untitled entry')}")
-            print(f"{entry.get('content', '')[:100]}...")  # Show first 100 chars
+            # Handle different journal entry formats
+            if isinstance(entry, dict):
+                # Format 1: Standard format with date, title, content
+                if "date" in entry:
+                    date = entry.get("date", "Unknown date")
+                    title = entry.get("title", "Untitled entry")
+                    content = entry.get("content", "")
+                    print(f"\n[{date}] {title}")
+                    if content:
+                        print(f"{content[:100]}..." if len(content) > 100 else content)
+                # Format 2: Lawrence's format with day, entry
+                elif "day" in entry:
+                    day = entry.get("day", "?")
+                    entry_text = entry.get("entry", "")
+                    print(f"\n[Day {day}]")
+                    if entry_text:
+                        print(f"{entry_text[:100]}..." if len(entry_text) > 100 else entry_text)
+            else:
+                print(f"\n{entry}")
             
     except Exception as e:
         print(f"Error printing summary: {e}")
+
+def list_json_files(folder):
+    """
+    Returns a list of .json filenames in the given folder.
+    
+    Args:
+        folder: Path to the folder to search in
+    
+    Returns:
+        list: List of filenames ending with .json
+    """
+    try:
+        if not os.path.exists(folder):
+            print(f"Folder {folder} does not exist.")
+            return []
+            
+        json_files = [f for f in os.listdir(folder) if f.endswith('.json')]
+        return json_files
+    except Exception as e:
+        print(f"Error listing JSON files: {e}")
+        return []

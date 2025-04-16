@@ -13,10 +13,10 @@
 
 import os
 import sys
-import json  # Added missing import for json module
+import json
 import argparse
 from pathlib import Path
-from utils import load_journal, save_journal, update_section, add_journal_entry, print_summary
+from utils import load_journal, save_journal, update_section, add_journal_entry, print_summary, list_json_files
 
 def get_logs_dir():
     """Get the absolute path to the logs directory."""
@@ -36,7 +36,7 @@ def list_journals():
             print("Logs directory doesn't exist yet. No journals available.")
             return []
             
-        journals = [f for f in os.listdir(logs_dir) if f.endswith('.json')]
+        journals = list_json_files(logs_dir)
         
         if not journals:
             print("No journal files found in logs directory.")
@@ -273,6 +273,114 @@ def update_character(journal_data):
     journal_data["character"] = character
     return journal_data
 
+def import_ai_journal():
+    """Import an updated journal from AI and overwrite an existing journal."""
+    print("\n=== Importing Updated Journal from AI ===")
+    
+    # Step 1: Show available JSON files in the logs directory
+    logs_dir = get_logs_dir()
+    print("Available JSON files in the logs directory:")
+    log_json_files = list_json_files(logs_dir)
+    
+    if not log_json_files:
+        print("No JSON files found in the logs directory.")
+        input("Press Enter to return to the main menu...")
+        return
+    
+    for i, file in enumerate(log_json_files, 1):
+        print(f"{i}. {file}")
+    print(f"{len(log_json_files) + 1}. Cancel and return to main menu")
+    
+    # Allow user to cancel or select a file
+    selection = input("\nEnter the number of the file to import (or anything else to cancel): ")
+    
+    if not selection.isdigit():
+        print("Import canceled.")
+        return
+        
+    try:
+        file_idx = int(selection) - 1
+        if file_idx == len(log_json_files):  # User selected the cancel option
+            print("Import canceled.")
+            return
+            
+        if file_idx < 0 or file_idx >= len(log_json_files):
+            print("Invalid selection.")
+            input("Press Enter to return to the main menu...")
+            return
+            
+        ai_filename = log_json_files[file_idx]
+    except ValueError:
+        print("Invalid input. Import canceled.")
+        input("Press Enter to return to the main menu...")
+        return
+    
+    # Step 2: Load the selected file from the logs directory
+    try:
+        ai_journal_path = os.path.join(logs_dir, ai_filename)
+        ai_journal_data = load_journal(ai_journal_path)
+        print(f"Successfully loaded {ai_filename}.")
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"Error loading file {ai_filename}: {e}")
+        input("Press Enter to return to the main menu...")
+        return
+    except IsADirectoryError:
+        print(f"Error: {ai_filename} is a directory, not a file.")
+        input("Press Enter to return to the main menu...")
+        return
+    
+    # Step 3: List all journal files in the /logs directory (for selecting where to save)
+    print("\nWhich journal would you like to overwrite?")
+    for i, journal in enumerate(log_json_files, 1):
+        print(f"{i}. {journal}")
+    print(f"{len(log_json_files) + 1}. Cancel and return to main menu")
+    
+    try:
+        choice = input("\nEnter the number of the journal to overwrite (or anything else to cancel): ")
+        
+        if not choice.isdigit():
+            print("Import canceled.")
+            return
+            
+        choice_num = int(choice)
+        
+        if choice_num == len(log_json_files) + 1:
+            print("Import canceled.")
+            return
+            
+        if choice_num < 1 or choice_num > len(log_json_files):
+            print("Invalid selection. Import canceled.")
+            return
+        
+        target_journal = log_json_files[choice_num - 1]
+        target_path = os.path.join(logs_dir, target_journal)
+        
+        # Skip confirmation if source and target are the same
+        if ai_filename == target_journal:
+            print("You selected the same file as source and target. No changes needed.")
+            input("Press Enter to continue...")
+            return
+        
+        # Add a confirmation step
+        confirm = input(f"Are you sure you want to overwrite '{target_journal}' with the contents of '{ai_filename}'? This cannot be undone. (y/n): ")
+        if confirm.lower() != 'y':
+            print("Import canceled.")
+            return
+        
+        # Step 4: Overwrite the selected log with the contents of the updated one
+        if save_journal(ai_journal_data, target_path):
+            # Step 5: Print confirmation message
+            print(f"Successfully imported {ai_filename} and overwrote {target_journal}.")
+            input("Press Enter to continue...")
+        else:
+            print(f"Failed to overwrite {target_journal}.")
+            input("Press Enter to continue...")
+    except ValueError:
+        print("Invalid input. Import canceled.")
+    except Exception as e:
+        print(f"Error during import: {e}")
+        input("Press Enter to continue...")
+
 def main():
     """Main function to run the Solo D&D Journal application."""
     print("===== D&D Solo Journal =====")
@@ -329,9 +437,10 @@ def main():
         print("3. Update quest log")
         print("4. Update character stats")
         print("5. View summary")
-        print("6. Save and exit")
+        print("6. Import updated journal from AI")
+        print("7. Save and exit")
         
-        choice = input("\nChoose an option (1-6): ")
+        choice = input("\nChoose an option (1-7): ")
         
         if choice == '1':
             journal_data = add_new_entry(journal_data)
@@ -344,6 +453,14 @@ def main():
         elif choice == '5':
             print_summary(journal_data)
         elif choice == '6':
+            import_ai_journal()
+            # Reload the current journal in case it was the one overwritten
+            try:
+                journal_data = load_journal(journal_path)
+                print("Current journal reloaded.")
+            except:
+                print("Warning: Could not reload the current journal.")
+        elif choice == '7':
             if save_journal(journal_data, journal_path):
                 print(f"Journal saved to {journal_path}")
             else:

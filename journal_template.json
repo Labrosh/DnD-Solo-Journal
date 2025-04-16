@@ -6,9 +6,20 @@
     "hp": 0,
     "hit_dice": "",
     "fighting_style": "",
-    "features": []
+    "features": [],
+    "currency": {
+      "gp": 0,
+      "sp": 0,
+      "cp": 0
+    }
   },
-  "inventory": [],
+  "inventory": [
+    {
+      "name": "",
+      "quantity": 0,
+      "description": ""
+    }
+  ],
   "quests": {
     "completed": [],
     "active": [],
