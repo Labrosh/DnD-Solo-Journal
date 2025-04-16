@@ -13,6 +13,7 @@
 
 import os
 import sys
+import json  # Added missing import for json module
 import argparse
 from pathlib import Path
 from utils import load_journal, save_journal, update_section, add_journal_entry, print_summary
