@@ -7,6 +7,8 @@
     "hit_dice": "",
     "fighting_style": "",
     "features": [],
+    "skills": [],
+    "saving_throws": [],
     "currency": {
       "gp": 0,
       "sp": 0,
@@ -16,8 +18,9 @@
   "inventory": [
     {
       "name": "",
-      "quantity": 0,
-      "description": ""
+      "quantity": 1,
+      "description": "",
+      "tags": []
     }
   ],
   "quests": {
@@ -27,7 +30,17 @@
         "description": "",
         "giver": "",
         "started": "",
-        "completed_date": ""
+        "completed_date": "",
+        "detailed_log": {
+          "setting": "",
+          "trigger": "",
+          "player_choices": [],
+          "enemy": "",
+          "combat_notes": [],
+          "aftermath": "",
+          "character_notes": [],
+          "why_it_matters": ""
+        }
       }
     ],
     "active": [
@@ -35,7 +48,8 @@
         "title": "",
         "description": "",
         "giver": "",
-        "started": ""
+        "started": "",
+        "milestones": []
       }
     ],
     "rumors": [
@@ -43,13 +57,33 @@
         "title": "",
         "description": "",
         "source": "",
-        "heard_date": ""
+        "heard_date": "",
+        "credibility": 0
       }
     ]
   },
-  "npcs": [],
+  "npcs": [
+    {
+      "name": "",
+      "role": "",
+      "location": "",
+      "relationship": 0,
+      "notes": [],
+      "quests_involved": []
+    }
+  ],
   "mental_state": {
-    "notes": []
+    "notes": [],
+    "conditions": [],
+    "bonds": [],
+    "flaws": []
   },
-  "journal_log": []
+  "journal_log": [
+    {
+      "date": "",
+      "title": "",
+      "content": "",
+      "tags": []
+    }
+  ]
 }

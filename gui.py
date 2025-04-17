@@ -3,6 +3,8 @@ from tkinter import ttk, messagebox, filedialog, scrolledtext
 from utils import load_journal, save_journal, add_journal_entry, update_section, print_summary, list_json_files
 import os
 import json
+import shutil
+import datetime
 from pathlib import Path
 
 class DnDJournalGUI:
@@ -245,8 +247,29 @@ class DnDJournalGUI:
         tab = ttk.Frame(self.notebook)
         self.notebook.add(tab, text="Character")
         
+        # Main container with scrollbar
+        container = ttk.Frame(tab)
+        container.pack(fill=tk.BOTH, expand=True)
+        
+        canvas = tk.Canvas(container)
+        scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(
+                scrollregion=canvas.bbox("all")
+            )
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
         # Character info
-        info_frame = ttk.LabelFrame(tab, text="Character Info", padding=10)
+        info_frame = ttk.LabelFrame(scrollable_frame, text="Character Info", padding=10)
         info_frame.pack(fill=tk.X, padx=10, pady=10)
         
         # Name
@@ -274,52 +297,101 @@ class DnDJournalGUI:
         self.char_hit_dice = ttk.Entry(info_frame)
         self.char_hit_dice.grid(row=4, column=1, sticky=tk.W, padx=5, pady=5)
         
+        # Currency
+        currency_frame = ttk.LabelFrame(scrollable_frame, text="Currency", padding=10)
+        currency_frame.pack(fill=tk.X, padx=10, pady=10)
+        
+        ttk.Label(currency_frame, text="GP:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
+        self.char_gp = ttk.Spinbox(currency_frame, from_=0, to=9999)
+        self.char_gp.grid(row=0, column=1, sticky=tk.W, padx=5, pady=5)
+        
+        ttk.Label(currency_frame, text="SP:").grid(row=1, column=0, sticky=tk.W, padx=5, pady=5)
+        self.char_sp = ttk.Spinbox(currency_frame, from_=0, to=9999)
+        self.char_sp.grid(row=1, column=1, sticky=tk.W, padx=5, pady=5)
+        
+        ttk.Label(currency_frame, text="CP:").grid(row=2, column=0, sticky=tk.W, padx=5, pady=5)
+        self.char_cp = ttk.Spinbox(currency_frame, from_=0, to=9999)
+        self.char_cp.grid(row=2, column=1, sticky=tk.W, padx=5, pady=5)
+        
+        # Mental State
+        mental_frame = ttk.LabelFrame(scrollable_frame, text="Mental State Notes", padding=10)
+        mental_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        self.mental_notes = scrolledtext.ScrolledText(mental_frame, width=40, height=5)
+        self.mental_notes.pack(fill=tk.BOTH, expand=True)
+        
         # Save button
-        ttk.Button(info_frame, text="Save Changes", command=self.save_character).grid(row=5, column=1, sticky=tk.E, padx=5, pady=5)
+        ttk.Button(scrollable_frame, text="Save Changes", command=self.save_character).pack(pady=10)
         
     def create_settings_tab(self):
-        """Create the settings tab with import/export and QoL features"""
+        """Create the settings tab with organized sections"""
         tab = ttk.Frame(self.notebook)
         self.notebook.add(tab, text="Settings")
         
-        # Backup Section
-        backup_frame = ttk.LabelFrame(tab, text="Backup & Restore", padding=10)
-        backup_frame.pack(fill=tk.X, padx=10, pady=5)
+        # Main container with scrollbar
+        container = ttk.Frame(tab)
+        container.pack(fill=tk.BOTH, expand=True)
         
-        ttk.Button(backup_frame, text="Create Backup",
-                 command=self.create_backup).pack(fill=tk.X, pady=2)
-        ttk.Button(backup_frame, text="Restore Backup",
-                 command=self.restore_backup).pack(fill=tk.X, pady=2)
+        canvas = tk.Canvas(container)
+        scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
         
-        # Import/Export Section
-        transfer_frame = ttk.LabelFrame(tab, text="Data Transfer", padding=10)
-        transfer_frame.pack(fill=tk.X, padx=10, pady=5)
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(
+                scrollregion=canvas.bbox("all")
+            )
+        )
         
-        ttk.Button(transfer_frame, text="Import Journal",
-                 command=self.import_journal).pack(fill=tk.X, pady=2)
-        ttk.Button(transfer_frame, text="Export Current Journal",
-                 command=self.export_journal).pack(fill=tk.X, pady=2)
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
         
-        # QoL Features Section
-        qol_frame = ttk.LabelFrame(tab, text="Quality of Life", padding=10)
-        qol_frame.pack(fill=tk.X, padx=10, pady=5)
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
         
-        # Auto-save toggle
+        # Data Management Section
+        data_frame = ttk.LabelFrame(scrollable_frame, text="Data Management", padding=10)
+        data_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        # Backup/Restore
+        backup_frame = ttk.LabelFrame(data_frame, text="Backup", padding=5)
+        backup_frame.pack(fill=tk.X, pady=2)
+        ttk.Button(backup_frame, text="Create Backup", command=self.create_backup).pack(fill=tk.X)
+        ttk.Button(backup_frame, text="Restore Backup", command=self.restore_backup).pack(fill=tk.X, pady=5)
+        
+        # Import/Export
+        transfer_frame = ttk.LabelFrame(data_frame, text="Transfer", padding=5)
+        transfer_frame.pack(fill=tk.X, pady=2)
+        ttk.Button(transfer_frame, text="Import Journal", command=self.import_journal).pack(fill=tk.X)
+        ttk.Button(transfer_frame, text="Export Journal", command=self.export_journal).pack(fill=tk.X, pady=5)
+        
+        # Application Settings Section
+        app_frame = ttk.LabelFrame(scrollable_frame, text="Application Settings", padding=10)
+        app_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        # Auto-save
+        auto_save_frame = ttk.Frame(app_frame)
+        auto_save_frame.pack(fill=tk.X, pady=2)
         self.auto_save_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(qol_frame, text="Enable Auto-Save",
-                       variable=self.auto_save_var).pack(anchor=tk.W, pady=2)
+        ttk.Checkbutton(auto_save_frame, text="Enable Auto-Save",
+                       variable=self.auto_save_var).pack(side=tk.LEFT)
         
-        # Quick summary button
-        ttk.Button(qol_frame, text="Show Current Summary",
-                 command=self.show_current_summary).pack(fill=tk.X, pady=2)
-        
-        # Theme selector
-        theme_frame = ttk.Frame(qol_frame)
+        # Theme
+        theme_frame = ttk.Frame(app_frame)
         theme_frame.pack(fill=tk.X, pady=5)
         ttk.Label(theme_frame, text="Theme:").pack(side=tk.LEFT)
         self.theme_var = tk.StringVar(value="default")
         ttk.Combobox(theme_frame, textvariable=self.theme_var,
-                    values=["default", "light", "dark"]).pack(side=tk.LEFT, padx=5)
+                    values=["default", "light", "dark"], width=15).pack(side=tk.LEFT, padx=5)
+        
+        # Quick Actions Section
+        actions_frame = ttk.LabelFrame(scrollable_frame, text="Quick Actions", padding=10)
+        actions_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        ttk.Button(actions_frame, text="Show Current Summary",
+                 command=self.show_current_summary).pack(fill=tk.X, pady=2)
+        ttk.Button(actions_frame, text="Refresh Journal List",
+                 command=self.refresh_journal_list).pack(fill=tk.X, pady=5)
 
     def create_backup(self):
         """Create a timestamped backup of current journal"""
@@ -335,10 +407,23 @@ class DnDJournalGUI:
         backup_path = os.path.join(backup_dir, backup_name)
         
         try:
+            if not os.path.exists(self.current_journal_path):
+                messagebox.showerror("Error", f"Journal file not found: {self.current_journal_path}")
+                return
+                
             shutil.copy2(self.current_journal_path, backup_path)
-            messagebox.showinfo("Success", f"Backup created at:\n{backup_path}")
+            messagebox.showinfo("Success",
+                f"Backup created successfully!\n\n"
+                f"Original: {self.current_journal_path}\n"
+                f"Backup: {backup_path}")
+        except PermissionError:
+            messagebox.showerror("Error",
+                "Permission denied. Please check your access rights to:\n"
+                f"{self.current_journal_path}")
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to create backup: {e}")
+            messagebox.showerror("Error",
+                f"Failed to create backup:\n{str(e)}\n\n"
+                "Please ensure the file isn't open in another program.")
 
     def restore_backup(self):
         """Restore from a backup file"""
@@ -362,17 +447,44 @@ class DnDJournalGUI:
             original_name = "_".join(backup_file.split("_")[2:])
             restore_path = os.path.join(os.path.dirname(backup_file), "..", original_name)
             
-            if messagebox.askyesno("Confirm", f"Restore {original_name} from backup?"):
-                shutil.copy2(backup_file, restore_path)
-                
-                # Reload if it was the current journal
-                if self.current_journal_path == restore_path:
-                    self.journal_data = test_load
-                    self.update_all_tabs()
-                
-                messagebox.showinfo("Success", "Journal restored successfully")
+            confirm_msg = (
+                f"Restore journal from backup?\n\n"
+                f"Backup: {os.path.basename(backup_file)}\n"
+                f"Will overwrite: {original_name}\n\n"
+                "This cannot be undone!"
+            )
+            
+            if messagebox.askyesno("Confirm Restore", confirm_msg, icon='warning'):
+                try:
+                    if not os.path.exists(backup_file):
+                        messagebox.showerror("Error", f"Backup file not found: {backup_file}")
+                        return
+                        
+                    shutil.copy2(backup_file, restore_path)
+                    
+                    # Reload if it was the current journal
+                    if self.current_journal_path == restore_path:
+                        self.journal_data = test_load
+                        self.update_all_tabs()
+                    
+                    messagebox.showinfo("Success",
+                        f"Journal restored successfully!\n\n"
+                        f"Backup: {backup_file}\n"
+                        f"Restored to: {restore_path}")
+                        
+                except PermissionError:
+                    messagebox.showerror("Error",
+                        "Permission denied. Please check:\n"
+                        f"- Read access to: {backup_file}\n"
+                        f"- Write access to: {restore_path}")
+                except Exception as e:
+                    messagebox.showerror("Error",
+                        f"Failed to restore backup:\n{str(e)}\n\n"
+                        "Please ensure files aren't open in another program.")
+        except json.JSONDecodeError:
+            messagebox.showerror("Error", "Invalid backup file format. Please select a valid JSON journal file.")
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to restore backup: {e}")
+            messagebox.showerror("Error", f"Failed to process backup: {str(e)}")
 
     def show_current_summary(self):
         """Display a summary of the current journal"""
@@ -382,9 +494,19 @@ class DnDJournalGUI:
             
         summary_win = tk.Toplevel(self.root)
         summary_win.title("Journal Summary")
+        summary_win.geometry("900x700")
         
-        text = scrolledtext.ScrolledText(summary_win, width=80, height=25)
-        text.pack(padx=10, pady=10)
+        container = ttk.Frame(summary_win)
+        container.pack(fill=tk.BOTH, expand=True)
+        
+        text = scrolledtext.ScrolledText(
+            container,
+            width=100,
+            height=35,
+            wrap=tk.WORD,
+            font=('Consolas', 10)
+        )
+        text.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
         # Redirect print output to the text widget
         import sys
@@ -398,6 +520,7 @@ class DnDJournalGUI:
         sys.stdout = old_stdout
         
         text.insert(tk.END, output)
+        text.config(state=tk.DISABLED)
         text.config(state=tk.DISABLED)
         
     # TODO: Implement all the command methods for the GUI
@@ -816,8 +939,18 @@ class DnDJournalGUI:
                 "class": self.char_class.get(),
                 "level": int(self.char_level.get()),
                 "hp": int(self.char_hp.get()),
-                "hit_dice": self.char_hit_dice.get()
+                "hit_dice": self.char_hit_dice.get(),
+                "currency": {
+                    "gp": int(self.char_gp.get()),
+                    "sp": int(self.char_sp.get()),
+                    "cp": int(self.char_cp.get())
+                }
             }
+            
+            # Handle mental state notes
+            mental_notes = self.mental_notes.get("1.0", tk.END).strip()
+            if mental_notes:
+                self.journal_data["mental_state"] = {"notes": [mental_notes]}
             
             self.journal_data["character"] = character
             
@@ -830,13 +963,51 @@ class DnDJournalGUI:
     
     def import_journal(self):
         """Import a journal file"""
-        # TODO: Implement journal import
-        pass
+        if not self.journal_data:
+            messagebox.showwarning("Warning", "Please load or create a journal first")
+            return
+            
+        filepath = filedialog.askopenfilename(
+            title="Select Journal to Import",
+            filetypes=[("JSON files", "*.json")]
+        )
+        
+        if not filepath:
+            return
+            
+        try:
+            imported_data = load_journal(filepath)
+            
+            # Confirm overwrite
+            if messagebox.askyesno("Confirm", "Replace current journal with imported data?"):
+                self.journal_data = imported_data
+                self.update_all_tabs()
+                messagebox.showinfo("Success", "Journal imported successfully")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to import journal: {e}")
     
     def export_journal(self):
         """Export current journal"""
-        # TODO: Implement journal export
-        pass
+        if not self.journal_data:
+            messagebox.showwarning("Warning", "No journal data to export")
+            return
+            
+        filepath = filedialog.asksaveasfilename(
+            title="Export Journal As",
+            defaultextension=".json",
+            filetypes=[("JSON files", "*.json")]
+        )
+        
+        if not filepath:
+            return
+            
+        try:
+            if save_journal(self.journal_data, filepath):
+                messagebox.showinfo("Success", f"Journal exported to {filepath}")
+            else:
+                messagebox.showerror("Error", "Failed to export journal")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to export journal: {e}")
     
     def update_all_tabs(self):
         """Update all tabs with current journal data"""
@@ -855,6 +1026,21 @@ class DnDJournalGUI:
         self.char_hp.insert(0, character.get("hp", 0))
         self.char_hit_dice.delete(0, tk.END)
         self.char_hit_dice.insert(0, character.get("hit_dice", ""))
+        
+        # Update currency
+        currency = character.get("currency", {"gp": 0, "sp": 0, "cp": 0})
+        self.char_gp.delete(0, tk.END)
+        self.char_gp.insert(0, currency.get("gp", 0))
+        self.char_sp.delete(0, tk.END)
+        self.char_sp.insert(0, currency.get("sp", 0))
+        self.char_cp.delete(0, tk.END)
+        self.char_cp.insert(0, currency.get("cp", 0))
+        
+        # Update mental state
+        self.mental_notes.delete("1.0", tk.END)
+        mental_state = self.journal_data.get("mental_state", {})
+        if mental_state.get("notes"):
+            self.mental_notes.insert(tk.END, "\n".join(mental_state["notes"]))
         
         # Update journal entries
         self.update_journal_entries()

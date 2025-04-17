@@ -109,7 +109,7 @@ def get_quest_titles(quests, section):
 
 def print_summary(data):
     """
-    Print a human-readable summary of the journal data.
+    Print a comprehensive human-readable summary of the journal data.
     
     Args:
         data: Journal data as a dictionary
@@ -119,44 +119,63 @@ def print_summary(data):
         print("\n===== CHARACTER SUMMARY =====")
         print(f"Name: {character.get('name', 'Unknown')}")
         print(f"Level {character.get('level', '?')} {character.get('class', 'Unknown')}")
-        print(f"HP: {character.get('hp', '?')}")
+        print(f"HP: {character.get('hp', '?')}/{character.get('max_hp', '?')}")
+        print(f"Hit Dice: {character.get('hit_dice', '?')}")
+        print(f"Fighting Style: {character.get('fighting_style', 'None')}")
+        
+        currency = character.get("currency", {})
+        print(f"\nCurrency: {currency.get('gp', 0)} GP, {currency.get('sp', 0)} SP, {currency.get('cp', 0)} CP")
+        
+        if features := character.get("features", []):
+            print("\nFeatures:")
+            for feature in features:
+                print(f"- {feature}")
         
         quests = data.get("quests", {})
         
-        print("\n===== ACTIVE QUESTS =====")
-        for title in get_quest_titles(quests, "active"):
-            print(f"- {title}")
+        print("\n===== QUESTS =====")
+        print("Active Quests:")
+        for i, quest in enumerate(quests.get("active", []), 1):
+            print(f"{i}. {quest.get('title', 'Untitled')} - {quest.get('description', 'No description')[:60]}...")
         
-        print("\n===== COMPLETED QUESTS =====")
-        for title in get_quest_titles(quests, "completed"):
-            print(f"- {title}")
+        print("\nCompleted Quests:")
+        for i, quest in enumerate(quests.get("completed", []), 1):
+            print(f"{i}. {quest.get('title', 'Untitled')} - Completed: {quest.get('completed_date', 'Unknown')}")
             
-        print("\n===== RUMORS =====")
-        for title in get_quest_titles(quests, "rumors"):
-            print(f"- {title}")
+        print("\nRumors:")
+        for i, rumor in enumerate(quests.get("rumors", []), 1):
+            print(f"{i}. {rumor.get('title', 'Untitled')} - Source: {rumor.get('source', 'Unknown')}")
+        
+        print("\n===== INVENTORY =====")
+        for item in data.get("inventory", [])[:10]:  # Show first 10 items
+            name = item.get("name", "Unnamed item")
+            qty = item.get("quantity", 1)
+            print(f"- {name} (x{qty})")
+        if len(data.get("inventory", [])) > 10:
+            print(f"... and {len(data.get('inventory', [])) - 10} more items")
         
         print("\n===== RECENT JOURNAL ENTRIES =====")
         entries = data.get("journal_log", [])
         for entry in entries[-3:]:  # Show the last 3 entries
             if isinstance(entry, dict):
-                if "date" in entry:
-                    date = entry.get("date", "Unknown date")
-                    title = entry.get("title", "Untitled entry")
-                    content = entry.get("content", "")
-                    print(f"\n[{date}] {title}")
-                    if content:
-                        print(f"{content[:100]}..." if len(content) > 100 else content)
-                elif "day" in entry:
-                    day = entry.get("day", "?")
-                    entry_text = entry.get("entry", "")
-                    print(f"\n[Day {day}]")
-                    if entry_text:
-                        print(f"{entry_text[:100]}..." if len(entry_text) > 100 else entry_text)
+                date = entry.get("date", entry.get("day", "Unknown date"))
+                title = entry.get("title", "Untitled entry")
+                content = entry.get("content", entry.get("entry", ""))
+                print(f"\n[{date}] {title}")
+                if content:
+                    print(content if len(content) < 200 else f"{content[:200]}...")
             else:
-                print(f"\n{entry}")
+                print(f"\n{str(entry)[:200]}{'...' if len(str(entry)) > 200 else ''}")
             
+        if mental_notes := data.get("mental_state", {}).get("notes", []):
+            print("\n===== MENTAL STATE NOTES =====")
+            for note in mental_notes[-3:]:  # Show last 3 notes
+                print(f"- {note}")
+                
     except Exception as e:
         print(f"Error printing summary: {e}")
+        print("Partial summary:")
+        print(json.dumps(data, indent=2)[:1000])
 
 def list_json_files(folder):
     """
