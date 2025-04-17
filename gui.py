@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog, scrolledtext
-from utils import load_journal, save_journal, add_journal_entry, update_section, print_summary, list_json_files
+from utils import load_journal, save_journal, add_journal_entry, update_section, print_summary, list_json_files, clean_journal_data
 import os
 import json
 import shutil
@@ -17,11 +17,21 @@ class DnDJournalGUI:
         self.journal_data = None
         self.current_journal_path = None
         
-        # Status bar
+        # Status bars
+        status_frame = ttk.Frame(self.root)
+        status_frame.pack(side=tk.BOTTOM, fill=tk.X)
+        
+        # Journal status
         self.status_var = tk.StringVar()
         self.status_var.set("No journal loaded")
-        status_bar = ttk.Label(self.root, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
-        status_bar.pack(side=tk.BOTTOM, fill=tk.X)
+        journal_status = ttk.Label(status_frame, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
+        journal_status.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
+        # Sync status
+        self.sync_var = tk.StringVar()
+        self.sync_var.set("Never synced")
+        sync_status = ttk.Label(status_frame, textvariable=self.sync_var, relief=tk.SUNKEN, anchor=tk.E, width=20)
+        sync_status.pack(side=tk.RIGHT)
         
         # Import button
         import_btn = ttk.Button(self.root, text="Import Updated Log", command=self.import_updated_log)
@@ -831,7 +841,7 @@ class DnDJournalGUI:
         ttk.Button(dialog, text="Add Quest", command=on_submit).grid(row=4, column=1, sticky=tk.E, padx=5, pady=5)
     
     def complete_quest(self):
-        """Mark selected quest as completed"""
+        """Mark selected quest as completed and record milestone"""
         if not self.journal_data:
             messagebox.showwarning("Warning", "Please load or create a journal first")
             return
@@ -840,6 +850,14 @@ class DnDJournalGUI:
         if not selection:
             messagebox.showwarning("Warning", "Please select a quest to complete")
             return
+            
+        # Ensure metadata exists
+        if "_meta" not in self.journal_data:
+            self.journal_data["_meta"] = {
+                "version": 1,
+                "last_ai_sync": None,
+                "milestones": []
+            }
             
         idx = selection[0]
         quests = self.journal_data.get("quests", {"active": [], "completed": [], "rumors": []})
@@ -863,8 +881,19 @@ class DnDJournalGUI:
                     quests["completed"].append(completed_quest)
                     self.journal_data["quests"] = quests
                     
+                    # Record milestone
+                    milestone = {
+                        "type": "quest_completed",
+                        "quest": quest_title,
+                        "timestamp": datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                        "completion_date": completed_quest.get("completed_date")
+                    }
+                    self.journal_data["_meta"]["milestones"].append(milestone)
+                    
                     if save_journal(self.journal_data, self.current_journal_path):
-                        messagebox.showinfo("Success", "Quest marked as completed")
+                        messagebox.showinfo("Success",
+                            f"Quest '{quest_title}' completed\n"
+                            f"Milestone recorded for AI sync")
                         self.update_quests_lists()
                         dialog.destroy()
                     else:
@@ -961,6 +990,15 @@ class DnDJournalGUI:
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save character: {e}")
     
+    def record_sync(self):
+        """Update last sync timestamp in metadata"""
+        if "_meta" not in self.journal_data:
+            self.journal_data["_meta"] = {"version": 1, "last_ai_sync": None, "milestones": []}
+        
+        from datetime import datetime
+        self.journal_data["_meta"]["last_ai_sync"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        self.update_sync_status()
+
     def import_journal(self):
         """Import a journal file"""
         if not self.journal_data:
@@ -977,12 +1015,16 @@ class DnDJournalGUI:
             
         try:
             imported_data = load_journal(filepath)
+            cleaned_data = clean_journal_data(imported_data)
             
             # Confirm overwrite
             if messagebox.askyesno("Confirm", "Replace current journal with imported data?"):
-                self.journal_data = imported_data
+                self.journal_data = cleaned_data
+                self.record_sync()
                 self.update_all_tabs()
-                messagebox.showinfo("Success", "Journal imported successfully")
+                messagebox.showinfo("Success",
+                    "Journal imported successfully\n"
+                    f"Last AI sync: {self.journal_data['_meta'].get('last_ai_sync', 'Never')}")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to import journal: {e}")
     
@@ -1002,17 +1044,45 @@ class DnDJournalGUI:
             return
             
         try:
-            if save_journal(self.journal_data, filepath):
-                messagebox.showinfo("Success", f"Journal exported to {filepath}")
+            cleaned_data = clean_journal_data(self.journal_data)
+            if save_journal(cleaned_data, filepath):
+                self.record_sync()
+                messagebox.showinfo("Success",
+                    f"Journal exported to {filepath}\n"
+                    f"Sync recorded at: {self.journal_data['_meta'].get('last_ai_sync')}")
             else:
                 messagebox.showerror("Error", "Failed to export journal")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to export journal: {e}")
     
+    def update_sync_status(self):
+        """Update the sync status display"""
+        if not self.journal_data or "_meta" not in self.journal_data:
+            self.sync_var.set("Never synced")
+            return
+            
+        last_sync = self.journal_data["_meta"].get("last_ai_sync")
+        if last_sync:
+            from datetime import datetime
+            sync_time = datetime.strptime(last_sync, "%Y-%m-%dT%H:%M:%S")
+            self.sync_var.set(f"Last sync: {sync_time.strftime('%b %d %H:%M')}")
+        else:
+            self.sync_var.set("Never synced")
+
     def update_all_tabs(self):
         """Update all tabs with current journal data"""
         if not self.journal_data:
             return
+
+        # Initialize metadata if missing
+        if "_meta" not in self.journal_data:
+            self.journal_data["_meta"] = {
+                "version": 1,
+                "last_ai_sync": None,
+                "milestones": []
+            }
+            
+        self.update_sync_status()
             
         # Update character tab
         character = self.journal_data.get("character", {})
@@ -1109,11 +1179,18 @@ class DnDJournalGUI:
         
     def update_quests_lists(self):
         """Update the quests lists display"""
+        if not hasattr(self, 'active_quests'):
+            return
+            
         self.active_quests.delete(0, tk.END)
         self.completed_quests.delete(0, tk.END)
         self.rumors.delete(0, tk.END)
         
+        if not self.journal_data:
+            return
+            
         quests = self.journal_data.get("quests", {})
+        print(f"DEBUG: Updating quests with {len(quests.get('active', []))} active, {len(quests.get('completed', []))} completed")  # Debug logging
         
         # Active quests
         for quest in quests.get("active", []):
@@ -1130,10 +1207,10 @@ class DnDJournalGUI:
             title = rumor.get("title", "Unnamed rumor") if isinstance(rumor, dict) else str(rumor)
             self.rumors.insert(tk.END, title)
         
-        # Bind double-click to show details
-        self.active_quests.bind("<Double-1>", lambda e: self.show_quest_details("active", self.active_quests.curselection()[0]))
-        self.completed_quests.bind("<Double-1>", lambda e: self.show_quest_details("completed", self.completed_quests.curselection()[0]))
-        self.rumors.bind("<Double-1>", lambda e: self.show_quest_details("rumors", self.rumors.curselection()[0]))
+        # Bind double-click to show details with selection check
+        self.active_quests.bind("<Double-1>", lambda e: self.show_quest_details("active", self.active_quests.curselection()[0]) if self.active_quests.curselection() else None)
+        self.completed_quests.bind("<Double-1>", lambda e: self.show_quest_details("completed", self.completed_quests.curselection()[0]) if self.completed_quests.curselection() else None)
+        self.rumors.bind("<Double-1>", lambda e: self.show_quest_details("rumors", self.rumors.curselection()[0]) if self.rumors.curselection() else None)
 
 def main():
     root = tk.Tk()

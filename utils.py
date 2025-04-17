@@ -177,6 +177,45 @@ def print_summary(data):
         print("Partial summary:")
         print(json.dumps(data, indent=2)[:1000])
 
+def clean_journal_data(data):
+    """
+    Clean journal data by removing empty fields and null values.
+    Preserves structure needed for AI processing.
+    
+    Args:
+        data: Journal data dictionary
+    
+    Returns:
+        dict: Cleaned journal data
+    """
+    def clean_dict(d):
+        if not isinstance(d, dict):
+            return d
+        return {k: clean_dict(v) for k, v in d.items()
+                if v not in (None, "", [], {}) and not str(v).isspace()}
+    
+    # Preserve these fields even if empty
+    required_fields = {
+        "character": {"name", "class", "level"},
+        "quests": {"active", "completed", "rumors"},
+        "_meta": {"version", "last_ai_sync", "milestones"}
+    }
+    
+    cleaned = clean_dict(data)
+    
+    # Ensure required structure remains
+    for section, fields in required_fields.items():
+        if section not in cleaned:
+            cleaned[section] = {}
+        for field in fields:
+            if field not in cleaned[section]:
+                if section == "quests":
+                    cleaned[section][field] = []
+                else:
+                    cleaned[section][field] = None
+    
+    return cleaned
+
 def list_json_files(folder):
     """
     Returns a list of .json filenames in the given folder.

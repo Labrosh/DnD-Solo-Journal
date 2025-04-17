@@ -1,4 +1,9 @@
 {
+  "_meta": {
+    "version": 1,
+    "last_ai_sync": null,
+    "milestones": []
+  },
   "character": {
     "name": "",
     "level": 1,
@@ -39,7 +44,8 @@
           "combat_notes": [],
           "aftermath": "",
           "character_notes": [],
-          "why_it_matters": ""
+          "why_it_matters": "",
+          "tags": []
         }
       }
     ],
@@ -58,7 +64,8 @@
         "description": "",
         "source": "",
         "heard_date": "",
-        "credibility": 0
+        "credibility": 0,
+        "tags": []
       }
     ]
   },

@@ -30,6 +30,10 @@ env/
 # Ignore all files in logs directory
 logs/*.json
 
+# Ignore backups folder and its contents
+logs/backups/
+logs/backups/*
+
 # Keep the logs directory structure
 !logs/.gitkeep
 logs/*.backup

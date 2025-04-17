@@ -1,67 +1,79 @@
+# D&D Solo Journal - AI Adventure Integration Tool
 
-# DnD Solo Journal
+## Overview
+This tool maintains continuity for AI-run D&D adventures by:
+- Tracking game state in structured JSON format
+- Providing backup UI for reviewing/editing AI-generated content
+- Managing milestone updates between AI sessions
 
-A lightweight journaling system for solo Dungeons & Dragons players, designed to track character stats, inventory, quests, and narrative progression. Built specifically to support text-based roleplay campaigns and AI-assisted storytelling.
+## Core Workflow
+1. **AI Session**: ChatGPT runs the adventure
+2. **Milestone Reached**: AI prompts to update the journal
+3. **Export**: Save current state from this tool
+4. **AI Processing**: ChatGPT reads, updates, and returns journal
+5. **Import**: Load updated journal back into this tool
+6. **Repeat**: Continue the adventure
 
-## 🎯 Purpose
+## Key Features
+- **AI Sync Tracking**: Timestamps and version control
+- **Milestone Markers**: Quest completions, level ups, etc.
+- **Data Validation**: Clean JSON structure for reliable AI parsing
+- **Dual Display**: Summary views + full narrative logs
+- **Manual Overrides**: Edit capability for rare corrections
 
-This project was created to support a long-term solo D&D campaign. It focuses on clear, persistent tracking of:
-
-- Character stats and progression
-- Inventory and quest items
-- Quest logs and ongoing leads
-- Known NPCs
-- Mental/emotional development of the character
-- Journal entries per in-game day
-
-## 📦 Features
-
-- JSON-based save files for persistence and AI-friendly data loading
-- Modular structure for easy editing and future expansions
-- Clear separation of character data, quest state, and RP flavor
-- Future-proof design for importing/exporting logs between sessions
-
-## 📁 Project Structure
-
-```
-dnd_solo_journal/
-├── main.py                # Entry point for running the journal tool
-├── journal_template.json  # Default structure for new characters
-├── utils.py               # Helper functions (e.g., read/write/save JSON)
-├── logs/                  # Stores your saved game states
-└── README.md              # This file
+## Installation
+```bash
+git clone [repo-url]
+cd DnD-Solo-Journal
+python3 gui.py
 ```
 
-## 🔧 Planned Features
+## Usage
+1. Start new journal from template or load existing
+2. Play adventure with AI (ChatGPT)
+3. At milestones:
+   - Export current journal (`Settings > Export Journal`)
+   - Provide JSON to AI for updates
+   - Import AI-updated journal (`Settings > Import Journal`)
+4. Review changes and continue adventure
 
-- Command-line tool for creating and updating journal files
-- Optional CLI prompts for character creation and quest logging
-- Auto-updating quest and inventory logs after AI-assisted sessions
-- Markdown or plaintext exports for reading summaries
+## Data Structure
+Journals contain:
+- Character stats and inventory
+- Active/completed quests
+- NPC relationships 
+- Mental state notes
+- Metadata for AI sync tracking
 
-## 💾 JSON Format Overview
+Example structure:
+```json
+{
+  "_meta": {
+    "version": 2,
+    "last_ai_sync": "2025-04-16T19:30:00",
+    "milestones": [
+      {
+        "type": "quest_completed",
+        "quest": "The Ghoul in the Mine",
+        "timestamp": "2025-04-16T19:25:00"
+      }
+    ]
+  },
+  "character": {
+    "name": "Lawrence Holding",
+    "class": "Fighter",
+    "level": 2
+  },
+  "quests": {
+    "active": [],
+    "completed": [...],
+    "rumors": [...]
+  }
+}
+```
 
-Each journal file contains the following sections:
-
-- `character` – core stats and features
-- `inventory` – all current gear, rations, gold, and key items
-- `quests` – completed, active, and rumored
-- `npcs` – known characters
-- `mental_state` – emotional summaries or ongoing thoughts
-- `journal_log` – daily narrative entries
-
-## 📚 How to Use
-
-1. Start with `journal_template.json` and rename it for your character.
-2. Run `main.py` to update logs or begin a new entry.
-3. Upload the log to your AI assistant for a character check-in.
-4. Receive updates, save the new file, and repeat.
-
-## 🧙 Solo Campaign Tested
-
-Originally created for the adventures of Lawrence Holding, an aging soldier-turned-adventurer wandering through a grounded, gritty D&D world. Supports all storytelling styles, from survivalist campaigns to epic magical quests.
-
----
-
-Feel free to fork, adapt, and expand for your own campaigns!
-
+## Best Practices
+- Always export/import via the GUI (don't edit JSON directly)
+- Verify AI changes after import
+- Use milestones to maintain narrative continuity
+- Keep manual edits minimal
