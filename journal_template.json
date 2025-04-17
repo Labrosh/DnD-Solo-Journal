@@ -21,9 +21,31 @@
     }
   ],
   "quests": {
-    "completed": [],
-    "active": [],
-    "rumors": []
+    "completed": [
+      {
+        "title": "",
+        "description": "",
+        "giver": "",
+        "started": "",
+        "completed_date": ""
+      }
+    ],
+    "active": [
+      {
+        "title": "",
+        "description": "",
+        "giver": "",
+        "started": ""
+      }
+    ],
+    "rumors": [
+      {
+        "title": "",
+        "description": "",
+        "source": "",
+        "heard_date": ""
+      }
+    ]
   },
   "npcs": [],
   "mental_state": {

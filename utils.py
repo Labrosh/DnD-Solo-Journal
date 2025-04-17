@@ -102,6 +102,11 @@ def add_journal_entry(data, entry):
         data["journal_log"].append(entry)
     return data
 
+def get_quest_titles(quests, section):
+    """Get list of quest titles from a quest section"""
+    return [q.get('title', 'Unnamed Quest') if isinstance(q, dict) else str(q)
+            for q in quests.get(section, [])]
+
 def print_summary(data):
     """
     Print a human-readable summary of the journal data.
@@ -116,19 +121,24 @@ def print_summary(data):
         print(f"Level {character.get('level', '?')} {character.get('class', 'Unknown')}")
         print(f"HP: {character.get('hp', '?')}")
         
+        quests = data.get("quests", {})
+        
         print("\n===== ACTIVE QUESTS =====")
-        for quest in data.get("quests", {}).get("active", []):
-            if isinstance(quest, dict):
-                print(f"- {quest.get('title', 'Unnamed Quest')}")
-            else:
-                print(f"- {quest}")
+        for title in get_quest_titles(quests, "active"):
+            print(f"- {title}")
+        
+        print("\n===== COMPLETED QUESTS =====")
+        for title in get_quest_titles(quests, "completed"):
+            print(f"- {title}")
+            
+        print("\n===== RUMORS =====")
+        for title in get_quest_titles(quests, "rumors"):
+            print(f"- {title}")
         
         print("\n===== RECENT JOURNAL ENTRIES =====")
         entries = data.get("journal_log", [])
         for entry in entries[-3:]:  # Show the last 3 entries
-            # Handle different journal entry formats
             if isinstance(entry, dict):
-                # Format 1: Standard format with date, title, content
                 if "date" in entry:
                     date = entry.get("date", "Unknown date")
                     title = entry.get("title", "Untitled entry")
@@ -136,7 +146,6 @@ def print_summary(data):
                     print(f"\n[{date}] {title}")
                     if content:
                         print(f"{content[:100]}..." if len(content) > 100 else content)
-                # Format 2: Lawrence's format with day, entry
                 elif "day" in entry:
                     day = entry.get("day", "?")
                     entry_text = entry.get("entry", "")

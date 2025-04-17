@@ -15,6 +15,16 @@ class DnDJournalGUI:
         self.journal_data = None
         self.current_journal_path = None
         
+        # Status bar
+        self.status_var = tk.StringVar()
+        self.status_var.set("No journal loaded")
+        status_bar = ttk.Label(self.root, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
+        status_bar.pack(side=tk.BOTTOM, fill=tk.X)
+        
+        # Import button
+        import_btn = ttk.Button(self.root, text="Import Updated Log", command=self.import_updated_log)
+        import_btn.pack(side=tk.TOP, padx=5, pady=5)
+        
         # Create main container
         self.main_container = ttk.Frame(root)
         self.main_container.pack(fill=tk.BOTH, expand=True)
@@ -29,7 +39,7 @@ class DnDJournalGUI:
         self.create_inventory_tab()
         self.create_quests_tab()
         self.create_character_tab()
-        self.create_import_tab()
+        self.create_settings_tab()
         
         # Start with welcome tab
         self.notebook.select(0)
@@ -131,8 +141,17 @@ class DnDJournalGUI:
         completed_frame = ttk.Frame(quest_notebook)
         quest_notebook.add(completed_frame, text="Completed")
         
-        self.completed_quests = tk.Listbox(completed_frame)
-        self.completed_quests.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        # Completed quests list
+        completed_list_frame = ttk.Frame(completed_frame)
+        completed_list_frame.pack(fill=tk.BOTH, expand=True)
+        
+        self.completed_quests = tk.Listbox(completed_list_frame)
+        self.completed_quests.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
+        # View Full Log button
+        view_log_btn = ttk.Button(completed_list_frame, text="View Full Log",
+                                command=self.view_full_quest_log)
+        view_log_btn.pack(side=tk.RIGHT, padx=5, pady=5)
         
         # Rumors
         rumors_frame = ttk.Frame(quest_notebook)
@@ -148,6 +167,78 @@ class DnDJournalGUI:
         ttk.Button(button_frame, text="Add Quest", command=self.add_quest).pack(side=tk.LEFT, padx=5)
         ttk.Button(button_frame, text="Complete Quest", command=self.complete_quest).pack(side=tk.LEFT, padx=5)
         ttk.Button(button_frame, text="Add Rumor", command=self.add_rumor).pack(side=tk.LEFT, padx=5)
+
+    def view_full_quest_log(self):
+        """Show the full detailed log for a completed quest"""
+        selection = self.completed_quests.curselection()
+        if not selection:
+            messagebox.showwarning("Warning", "Please select a quest first")
+            return
+            
+        idx = selection[0]
+        quests = self.journal_data.get("quests", {}).get("completed", [])
+        if idx >= len(quests):
+            return
+            
+        quest = quests[idx]
+        if "detailed_log" not in quest:
+            messagebox.showwarning("Warning",
+                                 "This quest has no detailed log. Please update the journal data to include structured quest notes.")
+            return
+            
+        log = quest["detailed_log"]
+        
+        # Create detail window
+        detail_win = tk.Toplevel(self.root)
+        detail_win.title(f"Quest Log: {quest.get('title', 'Untitled Quest')}")
+        detail_win.geometry("700x800")
+        
+        # Main container with scrollbar
+        container = ttk.Frame(detail_win)
+        container.pack(fill=tk.BOTH, expand=True)
+        
+        canvas = tk.Canvas(container)
+        scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(
+                scrollregion=canvas.bbox("all")
+            )
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Helper function to add sections
+        def add_section(parent, title, content, is_list=False):
+            frame = ttk.LabelFrame(parent, text=title)
+            frame.pack(fill=tk.X, padx=5, pady=5)
+            
+            if is_list and isinstance(content, list):
+                for item in content:
+                    ttk.Label(frame, text=f"• {item}", wraplength=650).pack(anchor="w", padx=5, pady=2)
+            elif content:
+                text = tk.Text(frame, wrap=tk.WORD, height=4, width=80)
+                text.insert("1.0", content)
+                text.config(state="disabled")
+                text.pack(fill=tk.X, padx=5, pady=5)
+            else:
+                ttk.Label(frame, text="No information available", foreground="gray").pack()
+        
+        # Add all sections in order
+        add_section(scrollable_frame, "📍 Setting", log.get("setting"))
+        add_section(scrollable_frame, "❗ Trigger", log.get("trigger"))
+        add_section(scrollable_frame, "🧠 Player Choices", log.get("player_choices"), is_list=True)
+        add_section(scrollable_frame, "☠️ Enemy", log.get("enemy"))
+        add_section(scrollable_frame, "⚔️ Combat Notes", log.get("combat_notes"), is_list=True)
+        add_section(scrollable_frame, "🧍 Aftermath", log.get("aftermath"))
+        add_section(scrollable_frame, "💭 Character Notes", log.get("character_notes"), is_list=True)
+        add_section(scrollable_frame, "⭐ Why It Matters", log.get("why_it_matters"))
         
     def create_character_tab(self):
         """Create the character stats tab"""
@@ -186,22 +277,128 @@ class DnDJournalGUI:
         # Save button
         ttk.Button(info_frame, text="Save Changes", command=self.save_character).grid(row=5, column=1, sticky=tk.E, padx=5, pady=5)
         
-    def create_import_tab(self):
-        """Create the import/export tab"""
+    def create_settings_tab(self):
+        """Create the settings tab with import/export and QoL features"""
         tab = ttk.Frame(self.notebook)
-        self.notebook.add(tab, text="Import/Export")
+        self.notebook.add(tab, text="Settings")
         
-        # Import frame
-        import_frame = ttk.LabelFrame(tab, text="Import Journal", padding=10)
-        import_frame.pack(fill=tk.X, padx=10, pady=10)
+        # Backup Section
+        backup_frame = ttk.LabelFrame(tab, text="Backup & Restore", padding=10)
+        backup_frame.pack(fill=tk.X, padx=10, pady=5)
         
-        ttk.Button(import_frame, text="Import Journal", command=self.import_journal).pack(pady=5)
+        ttk.Button(backup_frame, text="Create Backup",
+                 command=self.create_backup).pack(fill=tk.X, pady=2)
+        ttk.Button(backup_frame, text="Restore Backup",
+                 command=self.restore_backup).pack(fill=tk.X, pady=2)
         
-        # Export frame
-        export_frame = ttk.LabelFrame(tab, text="Export Journal", padding=10)
-        export_frame.pack(fill=tk.X, padx=10, pady=10)
+        # Import/Export Section
+        transfer_frame = ttk.LabelFrame(tab, text="Data Transfer", padding=10)
+        transfer_frame.pack(fill=tk.X, padx=10, pady=5)
         
-        ttk.Button(export_frame, text="Export Current Journal", command=self.export_journal).pack(pady=5)
+        ttk.Button(transfer_frame, text="Import Journal",
+                 command=self.import_journal).pack(fill=tk.X, pady=2)
+        ttk.Button(transfer_frame, text="Export Current Journal",
+                 command=self.export_journal).pack(fill=tk.X, pady=2)
+        
+        # QoL Features Section
+        qol_frame = ttk.LabelFrame(tab, text="Quality of Life", padding=10)
+        qol_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        # Auto-save toggle
+        self.auto_save_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(qol_frame, text="Enable Auto-Save",
+                       variable=self.auto_save_var).pack(anchor=tk.W, pady=2)
+        
+        # Quick summary button
+        ttk.Button(qol_frame, text="Show Current Summary",
+                 command=self.show_current_summary).pack(fill=tk.X, pady=2)
+        
+        # Theme selector
+        theme_frame = ttk.Frame(qol_frame)
+        theme_frame.pack(fill=tk.X, pady=5)
+        ttk.Label(theme_frame, text="Theme:").pack(side=tk.LEFT)
+        self.theme_var = tk.StringVar(value="default")
+        ttk.Combobox(theme_frame, textvariable=self.theme_var,
+                    values=["default", "light", "dark"]).pack(side=tk.LEFT, padx=5)
+
+    def create_backup(self):
+        """Create a timestamped backup of current journal"""
+        if not self.current_journal_path:
+            messagebox.showwarning("Warning", "No journal loaded to backup")
+            return
+            
+        backup_dir = os.path.join(os.path.dirname(self.current_journal_path), "backups")
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_name = f"backup_{timestamp}_{os.path.basename(self.current_journal_path)}"
+        backup_path = os.path.join(backup_dir, backup_name)
+        
+        try:
+            shutil.copy2(self.current_journal_path, backup_path)
+            messagebox.showinfo("Success", f"Backup created at:\n{backup_path}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to create backup: {e}")
+
+    def restore_backup(self):
+        """Restore from a backup file"""
+        backup_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs", "backups")
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        backup_file = filedialog.askopenfilename(
+            initialdir=backup_dir,
+            title="Select Backup to Restore",
+            filetypes=[("JSON files", "*.json")]
+        )
+        
+        if not backup_file:
+            return
+            
+        try:
+            # Load the backup to verify it's valid
+            test_load = load_journal(backup_file)
+            
+            # Get original filename from backup name
+            original_name = "_".join(backup_file.split("_")[2:])
+            restore_path = os.path.join(os.path.dirname(backup_file), "..", original_name)
+            
+            if messagebox.askyesno("Confirm", f"Restore {original_name} from backup?"):
+                shutil.copy2(backup_file, restore_path)
+                
+                # Reload if it was the current journal
+                if self.current_journal_path == restore_path:
+                    self.journal_data = test_load
+                    self.update_all_tabs()
+                
+                messagebox.showinfo("Success", "Journal restored successfully")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to restore backup: {e}")
+
+    def show_current_summary(self):
+        """Display a summary of the current journal"""
+        if not self.journal_data:
+            messagebox.showwarning("Warning", "No journal loaded")
+            return
+            
+        summary_win = tk.Toplevel(self.root)
+        summary_win.title("Journal Summary")
+        
+        text = scrolledtext.ScrolledText(summary_win, width=80, height=25)
+        text.pack(padx=10, pady=10)
+        
+        # Redirect print output to the text widget
+        import sys
+        from io import StringIO
+        old_stdout = sys.stdout
+        sys.stdout = StringIO()
+        
+        print_summary(self.journal_data)
+        
+        output = sys.stdout.getvalue()
+        sys.stdout = old_stdout
+        
+        text.insert(tk.END, output)
+        text.config(state=tk.DISABLED)
         
     # TODO: Implement all the command methods for the GUI
     
@@ -231,10 +428,62 @@ class DnDJournalGUI:
         try:
             self.journal_data = load_journal(journal_path)
             self.current_journal_path = journal_path
+            self.status_var.set(f"Loaded: {journal_name}")
             self.update_all_tabs()
             self.notebook.select(1)  # Switch to journal tab
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load journal: {e}")
+    
+    def import_updated_log(self):
+        """Import an updated journal file and overwrite an existing one"""
+        if not self.journal_data:
+            messagebox.showwarning("Warning", "Please load a journal first")
+            return
+            
+        # Step 1: Select the updated file
+        updated_file = filedialog.askopenfilename(
+            title="Select Updated Journal File",
+            filetypes=[("JSON files", "*.json")]
+        )
+        
+        if not updated_file:
+            return  # User cancelled
+            
+        try:
+            updated_data = load_journal(updated_file)
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load updated file: {e}")
+            return
+            
+        # Step 2: Select target file to overwrite
+        logs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+        target_file = filedialog.askopenfilename(
+            title="Select Target Journal to Overwrite",
+            initialdir=logs_dir,
+            filetypes=[("JSON files", "*.json")]
+        )
+        
+        if not target_file:
+            return  # User cancelled
+            
+        # Confirm overwrite
+        if not messagebox.askyesno("Confirm Overwrite",
+                                 f"Overwrite {os.path.basename(target_file)} with {os.path.basename(updated_file)}?"):
+            return
+            
+        # Perform the overwrite
+        try:
+            if save_journal(updated_data, target_file):
+                messagebox.showinfo("Success", "Journal updated successfully")
+                
+                # If we overwrote the currently loaded file, reload it
+                if target_file == self.current_journal_path:
+                    self.journal_data = updated_data
+                    self.update_all_tabs()
+            else:
+                messagebox.showerror("Error", "Failed to save updated journal")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to update journal: {e}")
     
     def create_new_journal(self):
         """Create a new journal from template"""
@@ -647,6 +896,31 @@ class DnDJournalGUI:
             else:
                 self.inventory_listbox.insert(tk.END, str(item))
     
+    def show_quest_details(self, quest_type, index):
+        """Show detailed view of a quest"""
+        quest = self.journal_data.get("quests", {}).get(quest_type, [])[index]
+        
+        dialog = tk.Toplevel(self.root)
+        dialog.title(f"Quest Details - {quest.get('title', 'Untitled')}")
+        
+        details = scrolledtext.ScrolledText(dialog, width=60, height=15)
+        details.pack(padx=10, pady=10)
+        
+        text = f"Title: {quest.get('title', 'Untitled')}\n\n"
+        text += f"Description:\n{quest.get('description', '')}\n\n"
+        
+        if quest_type in ["active", "completed"]:
+            text += f"Giver: {quest.get('giver', 'Unknown')}\n"
+            text += f"Started: {quest.get('started', 'Unknown')}\n"
+            if quest_type == "completed":
+                text += f"Completed: {quest.get('completed_date', 'Unknown')}\n"
+        elif quest_type == "rumors":
+            text += f"Source: {quest.get('source', 'Unknown')}\n"
+            text += f"Heard: {quest.get('heard_date', 'Unknown')}\n"
+            
+        details.insert(tk.END, text)
+        details.config(state=tk.DISABLED)
+        
     def update_quests_lists(self):
         """Update the quests lists display"""
         self.active_quests.delete(0, tk.END)
@@ -657,24 +931,23 @@ class DnDJournalGUI:
         
         # Active quests
         for quest in quests.get("active", []):
-            if isinstance(quest, dict):
-                self.active_quests.insert(tk.END, quest.get("title", "Unnamed quest"))
-            else:
-                self.active_quests.insert(tk.END, str(quest))
+            title = quest.get("title", "Unnamed quest") if isinstance(quest, dict) else str(quest)
+            self.active_quests.insert(tk.END, title)
         
         # Completed quests
         for quest in quests.get("completed", []):
-            if isinstance(quest, dict):
-                self.completed_quests.insert(tk.END, quest.get("title", "Unnamed quest"))
-            else:
-                self.completed_quests.insert(tk.END, str(quest))
+            title = quest.get("title", "Unnamed quest") if isinstance(quest, dict) else str(quest)
+            self.completed_quests.insert(tk.END, title)
         
         # Rumors
         for rumor in quests.get("rumors", []):
-            if isinstance(rumor, dict):
-                self.rumors.insert(tk.END, rumor.get("title", "Unnamed rumor"))
-            else:
-                self.rumors.insert(tk.END, str(rumor))
+            title = rumor.get("title", "Unnamed rumor") if isinstance(rumor, dict) else str(rumor)
+            self.rumors.insert(tk.END, title)
+        
+        # Bind double-click to show details
+        self.active_quests.bind("<Double-1>", lambda e: self.show_quest_details("active", self.active_quests.curselection()[0]))
+        self.completed_quests.bind("<Double-1>", lambda e: self.show_quest_details("completed", self.completed_quests.curselection()[0]))
+        self.rumors.bind("<Double-1>", lambda e: self.show_quest_details("rumors", self.rumors.curselection()[0]))
 
 def main():
     root = tk.Tk()
